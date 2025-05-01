@@ -1,43 +1,58 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
+import { Tabs, Redirect } from "expo-router";
+import { useAuth } from "../../contexts/AuthContext";
+import { ActivityIndicator, View } from "react-native";
+import { MaterialIcons } from '@expo/vector-icons';
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+export default function TabsLayout() {
+  const { user, loading } = useAuth();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
+        headerShown: true,
+        tabBarActiveTintColor: '#007AFF',
+        tabBarInactiveTintColor: 'gray',
+      }}
+      initialRouteName="home"
+    >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: "Home",
+          tabBarIcon: ({ color }) => <MaterialIcons name="home" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="match"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: "Match",
+          tabBarIcon: ({ color }) => <MaterialIcons name="people" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="connections"
+        options={{
+          title: "Connections",
+          tabBarIcon: ({ color }) => <MaterialIcons name="people-outline" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: "Messages",
+          tabBarIcon: ({ color }) => <MaterialIcons name="chat" size={24} color={color} />,
         }}
       />
     </Tabs>

@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read and write to all collections
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Specific rules for users collection
+    match /users/{userId} {
+      allow read: if true;  // Anyone can read user profiles
+      allow write: if request.auth != null;  // Only authenticated users can write
+    }
+    
+    // Specific rules for groups collection
+    match /groups/{groupId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Specific rules for invites collection
+    match /invites/{inviteId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+} 

@@ -1,3 +1,56 @@
+# UniSkillSwap
+
+A React Native application for skill swapping and learning between university students.
+
+## Project Status
+
+### Firebase Integration
+- ✅ Firebase Authentication: Working and properly configured
+- ✅ Firebase Config: Set up in `services/firebaseConfig.ts`
+- ✅ User Authentication Flow: Implemented in `_layout.tsx` with proper navigation guards
+
+### Core Features
+- ✅ Authentication screens
+- ✅ Navigation setup with Expo Router
+- ✅ Theme support (Dark/Light mode)
+- 🚧 Profile setup page
+- 🚧 Firestore user profile schema
+
+### Technical Stack
+- React Native with Expo
+- Firebase (Authentication, Firestore)
+- Expo Router for navigation
+- React Navigation theming
+
+### Important Context
+- The app is using Firebase SDK directly (not Expo Firebase)
+- Authentication is working properly
+- Navigation flow:
+  - Unauthenticated users -> `(auth)` group
+  - Authenticated users -> `(tabs)` group
+  - Profile setup -> Special handling in navigation guards
+
+### Development Environment
+- Using Expo development environment
+- Firebase emulators status: Not configured yet
+- Current working directory: `C:\Users\User\UniSkillSwap`
+
+### Recent Changes
+- Implemented authentication flow
+- Set up basic navigation structure
+- Added theme support
+- Created `.firebaserc` for CLI operations (optional since core Firebase is working)
+
+### Next Steps
+- Complete profile setup page
+- Implement Firestore user profile schema
+- Set up remaining Firebase services as needed
+
+## Notes
+- Firebase project ID: "uniskillswap"
+- Core Firebase services (Auth) are working without requiring `.firebaserc`
+- `.firebaserc` is only needed for CLI operations (hosting, emulators)
+
 # Welcome to your Expo app 👋
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
