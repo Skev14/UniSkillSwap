@@ -348,10 +348,19 @@ export default function GroupsScreen() {
               <View style={styles.buttonRow}>
                 <TouchableOpacity 
                   style={styles.viewButton} 
-                  onPress={() => router.push({
-                    pathname: "/group/[groupId]",
-                    params: { groupId: item.id }
-                  })}
+                  onPress={() => {
+                    if (user && item.members.includes(user.uid)) {
+                      router.push({
+                        pathname: "/groupChat",
+                        params: { groupId: item.id, groupName: item.name }
+                      });
+                    } else {
+                      router.push({
+                        pathname: "/group/[groupId]",
+                        params: { groupId: item.id }
+                      });
+                    }
+                  }}
                 >
                   <Text style={styles.buttonText}>View</Text>
                 </TouchableOpacity>

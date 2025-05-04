@@ -221,72 +221,76 @@ export default function BrowseProfilesScreen() {
         colors={["#4c669f", "#3b5998", "#192f6a"]}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>Browse & Search Profiles & Groups</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name, username, skill, or group..."
-          value={search}
-          onChangeText={setSearch}
-          placeholderTextColor="#e3eaff"
-        />
+        <Text style={styles.headerTitle}>Search Users & Groups</Text>
+        <View style={styles.searchBarWrapper}>
+          <Ionicons name="search" size={20} color="#4c669f" style={{ marginLeft: 10 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, username, skill, or group..."
+            value={search}
+            onChangeText={setSearch}
+            placeholderTextColor="#4c669f"
+          />
+        </View>
       </LinearGradient>
       {/* Leaderboard Section */}
       <View style={styles.leaderboardCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <View>
-            <Text style={styles.leaderboardTitle}>🏆 Weekly Leaderboard</Text>
-            <Text style={styles.leaderboardSubtitle}>
-              Resets every Sunday
-            </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="trophy" size={20} color="#FFD600" style={{ marginRight: 6 }} />
+            <Text style={styles.leaderboardTitle}>Weekly Leaderboard</Text>
           </View>
           <TouchableOpacity onPress={() => setLeaderboardModal(true)}>
             <Text style={styles.leaderboardViewAll}>View All</Text>
           </TouchableOpacity>
         </View>
+        <Text style={styles.leaderboardSubtitle}>Resets every Sunday</Text>
         {topUsers.map((user, idx) => (
-          <View key={user.id} style={styles.leaderboardRow}>
+          <View key={user.id} style={styles.leaderboardRowClean}>
             <Text style={styles.leaderboardRank}>{idx + 1}</Text>
             {user.photoURL ? (
               <Image source={{ uri: user.photoURL }} style={styles.leaderboardAvatar} />
             ) : (
               <View style={styles.leaderboardAvatarPlaceholder}>
-                <Ionicons name="person" size={24} color="#fff" />
+                <Ionicons name="person" size={22} color="#fff" />
               </View>
             )}
             <Text style={styles.leaderboardName}>{getDisplayName(user)}</Text>
-            <Text style={styles.leaderboardCount}>{user.sessionCount || 0} sessions</Text>
+            <View style={styles.sessionBadge}><Text style={styles.sessionBadgeText}>{user.sessionCount || 0}</Text></View>
           </View>
         ))}
       </View>
       {loading ? (
         <View style={styles.centered}><ActivityIndicator size="large" /></View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 90 }}>
           <Text style={styles.sectionTitle}>Users</Text>
           {filtered.length === 0 ? (
             <Text style={styles.noFeedback}>No users found.</Text>
           ) : (
             filtered.map(item => (
-              <TouchableOpacity key={item.id} style={styles.profileCard} onPress={() => openProfile(item)}>
+              <TouchableOpacity key={item.id} style={styles.profileCardClean} onPress={() => openProfile(item)}>
                 {item.photoURL ? (
                   <Image source={{ uri: item.photoURL }} style={styles.profileAvatar} />
                 ) : (
                   <View style={styles.profileAvatarPlaceholder}>
-                    <Ionicons name="person" size={32} color="#fff" />
+                    <Ionicons name="person" size={28} color="#fff" />
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.profileName}>{getDisplayName(item)}</Text>
                   {item.username && <Text style={styles.profileUsername}>@{item.username}</Text>}
                   <Text style={styles.profileBio} numberOfLines={1}>{item.bio}</Text>
-                  {item.skillsOffered && item.skillsOffered.length > 0 && (
-                    <Text style={styles.profileSkills} numberOfLines={1}>Offers: {item.skillsOffered.join(', ')}</Text>
-                  )}
-                  {item.skillsNeeded && item.skillsNeeded.length > 0 && (
-                    <Text style={styles.profileSkills} numberOfLines={1}>Needs: {item.skillsNeeded.join(', ')}</Text>
-                  )}
+                  <View style={styles.chipRow}>
+                    {item.skillsOffered && item.skillsOffered.map((skill, idx) => (
+                      <View key={skill + idx} style={[styles.chip, { backgroundColor: '#e3eaff' }]}><Text style={styles.chipText}>{skill}</Text></View>
+                    ))}
+                    {item.skillsNeeded && item.skillsNeeded.map((skill, idx) => (
+                      <View key={skill + idx} style={[styles.chip, { backgroundColor: '#eaffea' }]}><Text style={styles.chipText}>{skill}</Text></View>
+                    ))}
+                  </View>
                 </View>
-                <Ionicons name="chevron-forward" size={22} color="#4c669f" />
+                <Ionicons name="chevron-forward" size={20} color="#4c669f" />
               </TouchableOpacity>
             ))
           )}
@@ -295,14 +299,14 @@ export default function BrowseProfilesScreen() {
             <Text style={styles.noFeedback}>No groups found.</Text>
           ) : (
             filteredGroups.map(group => (
-              <TouchableOpacity key={group.id} style={styles.groupCard} onPress={() => setSelectedGroup(group)}>
-                <Ionicons name="people" size={32} color="#4c669f" style={{ marginRight: 12 }} />
+              <TouchableOpacity key={group.id} style={styles.groupCardClean} onPress={() => setSelectedGroup(group)}>
+                <Ionicons name="people" size={28} color="#4c669f" style={{ marginRight: 10 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.groupName}>{group.name}</Text>
                   <Text style={styles.groupDesc} numberOfLines={2}>{group.description}</Text>
                   <Text style={styles.groupMembers}>{group.members?.length || 0} members</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={22} color="#4c669f" />
+                <Ionicons name="chevron-forward" size={20} color="#4c669f" />
               </TouchableOpacity>
             ))
           )}
@@ -507,15 +511,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 10,
   },
-  searchInput: {
-    width: '90%',
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#e3eaff',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    borderRadius: 24,
+    marginTop: 10,
+    marginBottom: 10,
+    width: '92%',
+    alignSelf: 'center',
+    height: 48,
+    paddingHorizontal: 12,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderRadius: 24,
+    paddingHorizontal: 12,
     fontSize: 16,
     color: '#222',
-    marginBottom: 8,
+    height: 48,
+    marginLeft: 8,
   },
   profileCard: {
     flexDirection: 'row',
@@ -824,5 +840,66 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 10,
     color: '#666',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  chip: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginRight: 4,
+    marginBottom: 4,
+  },
+  chipText: {
+    fontSize: 12,
+    color: '#333',
+  },
+  leaderboardRowClean: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 0,
+  },
+  sessionBadge: {
+    backgroundColor: '#e3eaff',
+    borderRadius: 10,
+    minWidth: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 'auto',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  sessionBadgeText: {
+    color: '#4c669f',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  profileCardClean: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e3eaff',
+  },
+  groupCardClean: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e3eaff',
   },
 }); 

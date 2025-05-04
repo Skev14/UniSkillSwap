@@ -78,8 +78,8 @@ export default function GroupChatScreen() {
       // Real-time updates for messages
       const unsubscribe = onSnapshot(q, async (snapshot) => {
         const msgs: GroupMessage[] = [];
-        for (const doc of snapshot.docs) {
-          const data = doc.data() as MessageData;
+        for (const messageDoc of snapshot.docs) {
+          const data = messageDoc.data() as MessageData;
           // Fetch sender's profile if not already included
           let senderPhotoURL = data.senderPhotoURL;
           if (!senderPhotoURL) {
@@ -95,7 +95,7 @@ export default function GroupChatScreen() {
           }
           
           msgs.push({
-            id: doc.id,
+            id: messageDoc.id,
             senderId: data.senderId,
             senderName: data.senderName,
             senderPhotoURL,

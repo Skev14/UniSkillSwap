@@ -76,8 +76,17 @@ export default function MatchScreen() {
         }
       });
 
+      // Fetch all swipes by the current user
+      const swipesRef = collection(db, 'swipes');
+      const swipesQuery = query(swipesRef, where('swiperId', '==', user.uid));
+      const swipesSnap = await getDocs(swipesQuery);
+      const swipedIds = swipesSnap.docs.map(doc => doc.data().swipedId);
+
+      // Filter out users already swiped on
+      const filteredMatches = potentialMatches.filter(profile => !swipedIds.includes(profile.id));
+
       // Filter and sort potential matches based on compatibility
-      const sortedMatches = potentialMatches
+      const sortedMatches = filteredMatches
         .map(profile => ({
           profile,
           score: calculateMatchScore(currentUserProfile, profile)
@@ -167,10 +176,6 @@ export default function MatchScreen() {
           <Text style={styles.subtitle}>No potential matches found</Text>
           <Text style={styles.subtitle}>Check back later for new study partners!</Text>
         </LinearGradient>
-        <TouchableOpacity style={styles.refreshButton} onPress={loadPotentialMatches}>
-          <Ionicons name="refresh" size={20} color="#4c669f" />
-          <Text style={styles.refreshButtonText}>Refresh</Text>
-        </TouchableOpacity>
       </View>
     );
   }
@@ -183,10 +188,6 @@ export default function MatchScreen() {
       >
         <Text style={styles.title}>Recommended Users</Text>
         <Text style={styles.subtitle}>These users match your skills and availability. Swipe right to match, left to skip.</Text>
-        <TouchableOpacity style={styles.refreshButton} onPress={loadPotentialMatches}>
-          <Ionicons name="refresh" size={20} color="#fff" />
-          <Text style={[styles.refreshButtonText, { color: '#fff' }]}>Refresh</Text>
-        </TouchableOpacity>
       </LinearGradient>
 
       <Swiper
@@ -243,8 +244,8 @@ export default function MatchScreen() {
             </ScrollView>
           </View>
         )}
-        onSwipedLeft={(cardIndex) => handleSwipe('right', profiles[cardIndex])}
-        onSwipedRight={(cardIndex) => handleSwipe('left', profiles[cardIndex])}
+        onSwipedLeft={(cardIndex) => handleSwipe('left', profiles[cardIndex])}
+        onSwipedRight={(cardIndex) => handleSwipe('right', profiles[cardIndex])}
         onSwipedAll={() => {
           loadPotentialMatches();
         }}
@@ -254,10 +255,10 @@ export default function MatchScreen() {
         stackSeparation={15}
         overlayLabels={{
           left: {
-            title: 'MATCH',
+            title: 'SKIP',
             style: {
               label: {
-                backgroundColor: '#4CAF50',
+                backgroundColor: '#FF0000',
                 color: '#fff',
                 fontSize: 24,
                 padding: 10,
@@ -284,10 +285,10 @@ export default function MatchScreen() {
             }
           },
           right: {
-            title: 'SKIP',
+            title: 'MATCH',
             style: {
               label: {
-                backgroundColor: '#FF0000',
+                backgroundColor: '#4CAF50',
                 color: '#fff',
                 fontSize: 24,
                 padding: 10,
@@ -434,32 +435,5 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '600',
     fontSize: 15,
-  },
-  refreshButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginTop: 10,
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  refreshButtonText: {
-    marginLeft: 8,
-    fontWeight: '600',
-    fontSize: 15,
-    color: '#4c669f',
   },
 }); 

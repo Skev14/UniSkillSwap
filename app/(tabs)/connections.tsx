@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../services/firebaseConfig';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -123,7 +123,7 @@ export default function ConnectionsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 90 }}>
       <LinearGradient
         colors={['#4c669f', '#3b5998', '#192f6a']}
         style={styles.header}
@@ -153,42 +153,37 @@ export default function ConnectionsScreen() {
             <Ionicons name="heart-outline" size={22} color="#4c669f" style={{ marginRight: 6 }} />
             <Text style={styles.sectionTitle}>Interested Connections</Text>
           </View>
-          <FlatList
-            data={interestedConnections}
-            keyExtractor={item => item.id}
-            ItemSeparatorComponent={() => <View style={styles.divider} />}
-            renderItem={({ item }) => (
-              <View style={styles.compactCard}>
-                <View style={styles.compactAvatarWrap}>
-                  {item.photoURL ? (
-                    <Image source={{ uri: item.photoURL }} style={styles.compactAvatar} />
-                  ) : (
-                    <View style={styles.compactAvatarPlaceholder}>
-                      <Text style={styles.avatarText}>{item.id[0]}</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.compactInfo}>
-                  <Text style={styles.compactName} numberOfLines={1}>{item.bio || 'No bio'}</Text>
-                  <View style={styles.compactChipRow}>
-                    {item.skillsOffered.slice(0, 2).map((skill, idx) => (
-                      <View key={skill + idx} style={[styles.compactChip, { backgroundColor: '#e3eaff' }]}><Text style={styles.compactChipText}>{skill}</Text></View>
-                    ))}
-                    {item.skillsNeeded.slice(0, 1).map((skill, idx) => (
-                      <View key={skill + idx} style={[styles.compactChip, { backgroundColor: '#eaffea' }]}><Text style={styles.compactChipText}>{skill}</Text></View>
-                    ))}
-                    {item.availability.slice(0, 1).map((time, idx) => (
-                      <View key={time + idx} style={[styles.compactChip, { backgroundColor: '#f3eaff' }]}><Text style={styles.compactChipText}>{time}</Text></View>
-                    ))}
+          {interestedConnections.map((item) => (
+            <View key={item.id} style={styles.compactCard}>
+              <View style={styles.compactAvatarWrap}>
+                {item.photoURL ? (
+                  <Image source={{ uri: item.photoURL }} style={styles.compactAvatar} />
+                ) : (
+                  <View style={styles.compactAvatarPlaceholder}>
+                    <Text style={styles.avatarText}>{item.id[0]}</Text>
                   </View>
-                </View>
-                <TouchableOpacity style={styles.compactMsgBtn} onPress={() => router.push({ pathname: '/chat', params: { userId: item.id } })}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
-                  <Text style={styles.messageText}>Message</Text>
-                </TouchableOpacity>
+                )}
               </View>
-            )}
-          />
+              <View style={styles.compactInfo}>
+                <Text style={styles.compactName} numberOfLines={1}>{item.bio || 'No bio'}</Text>
+                <View style={styles.compactChipRow}>
+                  {item.skillsOffered.slice(0, 2).map((skill, idx) => (
+                    <View key={skill + idx} style={[styles.compactChip, { backgroundColor: '#e3eaff' }]}><Text style={styles.compactChipText}>{skill}</Text></View>
+                  ))}
+                  {item.skillsNeeded.slice(0, 1).map((skill, idx) => (
+                    <View key={skill + idx} style={[styles.compactChip, { backgroundColor: '#eaffea' }]}><Text style={styles.compactChipText}>{skill}</Text></View>
+                  ))}
+                  {item.availability.slice(0, 1).map((time, idx) => (
+                    <View key={time + idx} style={[styles.compactChip, { backgroundColor: '#f3eaff' }]}><Text style={styles.compactChipText}>{time}</Text></View>
+                  ))}
+                </View>
+              </View>
+              <TouchableOpacity style={styles.compactMsgBtn} onPress={() => router.push({ pathname: '/chat', params: { userId: item.id } })}>
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
+                <Text style={styles.messageText}>Message</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
         </>
       )}
       {mutualConnections.length > 0 && (
@@ -197,45 +192,40 @@ export default function ConnectionsScreen() {
             <Ionicons name="people-circle-outline" size={22} color="#4CAF50" style={{ marginRight: 6 }} />
             <Text style={[styles.sectionTitle, { color: '#4CAF50' }]}>Mutual Matches</Text>
           </View>
-          <FlatList
-            data={mutualConnections}
-            keyExtractor={item => item.id}
-            ItemSeparatorComponent={() => <View style={styles.divider} />}
-            renderItem={({ item }) => (
-              <View style={styles.compactCard}>
-                <View style={styles.compactAvatarWrap}>
-                  {item.photoURL ? (
-                    <Image source={{ uri: item.photoURL }} style={styles.compactAvatar} />
-                  ) : (
-                    <View style={styles.compactAvatarPlaceholder}>
-                      <Text style={styles.avatarText}>{item.id[0]}</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.compactInfo}>
-                  <Text style={styles.compactName} numberOfLines={1}>{item.bio || 'No bio'}</Text>
-                  <View style={styles.compactChipRow}>
-                    {item.skillsOffered.slice(0, 2).map((skill, idx) => (
-                      <View key={skill + idx} style={[styles.compactChip, { backgroundColor: '#e3eaff' }]}><Text style={styles.compactChipText}>{skill}</Text></View>
-                    ))}
-                    {item.skillsNeeded.slice(0, 1).map((skill, idx) => (
-                      <View key={skill + idx} style={[styles.compactChip, { backgroundColor: '#eaffea' }]}><Text style={styles.compactChipText}>{skill}</Text></View>
-                    ))}
-                    {item.availability.slice(0, 1).map((time, idx) => (
-                      <View key={time + idx} style={[styles.compactChip, { backgroundColor: '#f3eaff' }]}><Text style={styles.compactChipText}>{time}</Text></View>
-                    ))}
+          {mutualConnections.map((item) => (
+            <View key={item.id} style={styles.compactCard}>
+              <View style={styles.compactAvatarWrap}>
+                {item.photoURL ? (
+                  <Image source={{ uri: item.photoURL }} style={styles.compactAvatar} />
+                ) : (
+                  <View style={styles.compactAvatarPlaceholder}>
+                    <Text style={styles.avatarText}>{item.id[0]}</Text>
                   </View>
-                </View>
-                <TouchableOpacity style={styles.compactMsgBtn} onPress={() => router.push({ pathname: '/chat', params: { userId: item.id } })}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
-                  <Text style={styles.messageText}>Message</Text>
-                </TouchableOpacity>
+                )}
               </View>
-            )}
-          />
+              <View style={styles.compactInfo}>
+                <Text style={styles.compactName} numberOfLines={1}>{item.bio || 'No bio'}</Text>
+                <View style={styles.compactChipRow}>
+                  {item.skillsOffered.slice(0, 2).map((skill, idx) => (
+                    <View key={skill + idx} style={[styles.compactChip, { backgroundColor: '#e3eaff' }]}><Text style={styles.compactChipText}>{skill}</Text></View>
+                  ))}
+                  {item.skillsNeeded.slice(0, 1).map((skill, idx) => (
+                    <View key={skill + idx} style={[styles.compactChip, { backgroundColor: '#eaffea' }]}><Text style={styles.compactChipText}>{skill}</Text></View>
+                  ))}
+                  {item.availability.slice(0, 1).map((time, idx) => (
+                    <View key={time + idx} style={[styles.compactChip, { backgroundColor: '#f3eaff' }]}><Text style={styles.compactChipText}>{time}</Text></View>
+                  ))}
+                </View>
+              </View>
+              <TouchableOpacity style={styles.compactMsgBtn} onPress={() => router.push({ pathname: '/chat', params: { userId: item.id } })}>
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
+                <Text style={styles.messageText}>Message</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
         </>
       )}
-    </View>
+    </ScrollView>
   );
 }
 

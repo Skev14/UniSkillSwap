@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform, SafeAreaView } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { router } from 'expo-router';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -103,7 +103,7 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" />
       </View>
     );
@@ -111,209 +111,182 @@ export default function HomeScreen() {
 
   if (!profile) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Welcome!</Text>
-        <Text style={styles.subtitle}>Let's set up your profile</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.replace('/(auth)/profile-setup')}
-        >
-          <Text style={styles.buttonText}>Set Up Profile</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Welcome!</Text>
+          <Text style={styles.subtitle}>Let's set up your profile</Text>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => router.replace('/(auth)/profile-setup')}
+          >
+            <Text style={styles.buttonText}>Set Up Profile</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <LinearGradient
-        colors={["#4c669f", "#3b5998", "#192f6a"]}
-        style={styles.header}
-      >
-        <Text style={styles.headerTitle}>Welcome to UniSkillSwap</Text>
-      </LinearGradient>
-
-      {/* Credit Display Section */}
-      <View style={styles.creditCard}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <LinearGradient
           colors={["#4c669f", "#3b5998", "#192f6a"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.creditGradient}
+          style={styles.header}
         >
-          <View style={styles.creditHeader}>
-            <MaterialIcons name="credit-card" size={24} color="#fff" />
-            <Text style={styles.creditTitle}>Your Credits</Text>
+          <View style={styles.profileCard}>
+            <TouchableOpacity 
+              style={styles.photoContainer} 
+              onPress={updateProfilePhoto}
+              disabled={uploading}
+            >
+              {profile?.photoURL ? (
+                <Image 
+                  source={{ uri: profile.photoURL }} 
+                  style={styles.profilePhoto} 
+                />
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <Ionicons name="person" size={50} color="#fff" />
+                </View>
+              )}
+              {uploading && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator color="#fff" />
+                </View>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Welcome back!</Text>
+            <Text style={styles.creditText}><MaterialIcons name="credit-card" size={18} color="#fff" /> {credits} credits</Text>
+            <Text style={styles.updatePhotoText}>Tap photo to update</Text>
           </View>
-          <Text style={styles.creditAmount}>{credits}</Text>
-          <Text style={styles.creditSubtitle}>Available for sessions</Text>
         </LinearGradient>
-      </View>
 
-      <LinearGradient
-        colors={['#4c669f', '#3b5998', '#192f6a']}
-        style={styles.header}
-      >
-        <Text style={styles.title}>Welcome back!</Text>
-        <TouchableOpacity 
-          style={styles.photoContainer} 
-          onPress={updateProfilePhoto}
-          disabled={uploading}
-        >
-          {profile?.photoURL ? (
-            <Image 
-              source={{ uri: profile.photoURL }} 
-              style={styles.profilePhoto} 
-            />
-          ) : (
-            <View style={styles.photoPlaceholder}>
-              <Ionicons name="person" size={50} color="#fff" />
+        <View style={styles.content}>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Skills You Offer</Text>
+            <View style={styles.chipContainer}>
+              {(profile?.skillsOffered || []).filter(Boolean).map((skill, idx) => (
+                <View key={`offered-${skill}-${idx}`} style={styles.chip}>
+                  <Text style={styles.chipText}>{skill}</Text>
+                </View>
+              ))}
             </View>
-          )}
-          {uploading && (
-            <View style={styles.uploadingOverlay}>
-              <ActivityIndicator color="#fff" />
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Skills You Want to Learn</Text>
+            <View style={styles.chipContainer}>
+              {(profile?.skillsNeeded || []).filter(Boolean).map((skill, idx) => (
+                <View key={`needed-${skill}-${idx}`} style={styles.chip}>
+                  <Text style={styles.chipText}>{skill}</Text>
+                </View>
+              ))}
             </View>
-          )}
-          <Text style={styles.updatePhotoText}>Tap to update photo</Text>
-        </TouchableOpacity>
-      </LinearGradient>
-
-      <View style={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Skills You Offer</Text>
-          <View style={styles.chipContainer}>
-            {(profile?.skillsOffered || []).filter(Boolean).map((skill, idx) => (
-              <View key={`offered-${skill}-${idx}`} style={styles.chip}>
-                <Text style={styles.chipText}>{skill}</Text>
-              </View>
-            ))}
           </View>
-        </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Skills You Want to Learn</Text>
-          <View style={styles.chipContainer}>
-            {(profile?.skillsNeeded || []).filter(Boolean).map((skill, idx) => (
-              <View key={`needed-${skill}-${idx}`} style={styles.chip}>
-                <Text style={styles.chipText}>{skill}</Text>
-              </View>
-            ))}
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Availability</Text>
+            <View style={styles.chipContainer}>
+              {Array.isArray(profile?.availability) ? profile.availability.filter(Boolean).map((time, idx) => (
+                <View key={`avail-${time}-${idx}`} style={styles.chip}>
+                  <Text style={styles.chipText}>{time}</Text>
+                </View>
+              )) : null}
+            </View>
           </View>
-        </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Availability</Text>
-          <View style={styles.chipContainer}>
-            {Array.isArray(profile?.availability) ? profile.availability.filter(Boolean).map((time, idx) => (
-              <View key={`avail-${time}-${idx}`} style={styles.chip}>
-                <Text style={styles.chipText}>{time}</Text>
-              </View>
-            )) : null}
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>About You</Text>
+            <Text style={styles.bio}>{profile?.bio}</Text>
           </View>
+
+          <TouchableOpacity 
+            style={[styles.button, styles.editButton]} 
+            onPress={() => router.push('/(auth)/profile-setup?mode=edit')}
+          >
+            <Ionicons name="create-outline" size={20} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>Edit Profile</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.button, styles.findButton]} 
+            onPress={() => router.push('/match')}
+          >
+            <Ionicons name="people-outline" size={20} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>Find Study Partners</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.button, styles.logoutButton]} 
+            onPress={signOut}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>Logout</Text>
+          </TouchableOpacity>
         </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>About You</Text>
-          <Text style={styles.bio}>{profile?.bio}</Text>
-        </View>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.editButton]} 
-          onPress={() => router.push('/(auth)/profile-setup?mode=edit')}
-        >
-          <Ionicons name="create-outline" size={20} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>Edit Profile</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.findButton]} 
-          onPress={() => router.push('/match')}
-        >
-          <Ionicons name="people-outline" size={20} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>Find Study Partners</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.logoutButton]} 
-          onPress={signOut}
-        >
-          <Ionicons name="log-out-outline" size={20} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#fff',
   },
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 0,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
   header: {
-    padding: 20,
-    paddingTop: 40,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  creditCard: {
-    marginBottom: 20,
-  },
-  creditGradient: {
-    padding: 20,
-    borderRadius: 10,
-  },
-  creditHeader: {
-    flexDirection: 'row',
+    paddingTop: 60,
+    paddingBottom: 32,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  profileCard: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  profilePhoto: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
+    borderColor: '#fff',
     marginBottom: 10,
-  },
-  creditTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginLeft: 10,
-  },
-  creditAmount: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  creditSubtitle: {
-    fontSize: 14,
-    color: '#fff',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 20,
   },
   photoContainer: {
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  profilePhoto: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   photoPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#ccc',
-    justifyContent: 'center',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#e1e1e1',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
   },
   uploadingOverlay: {
     position: 'absolute',
@@ -321,49 +294,99 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 50,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 45,
+  },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  creditText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
   },
   updatePhotoText: {
-    fontSize: 14,
-    color: '#fff',
+    color: '#e3eaff',
+    fontSize: 13,
+    marginTop: 2,
+    marginBottom: 0,
+    textAlign: 'center',
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 18,
+    paddingBottom: 40,
   },
   card: {
-    marginBottom: 20,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 10,
+    color: '#4c669f',
   },
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
   },
   chip: {
-    padding: 10,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    marginRight: 10,
-    marginBottom: 10,
+    backgroundColor: '#4c669f',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    marginRight: 8,
+    marginBottom: 8,
   },
   chipText: {
+    color: '#fff',
     fontSize: 14,
+    fontWeight: '500',
   },
   bio: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 15,
+    color: '#444',
+    marginTop: 4,
+    lineHeight: 22,
   },
   button: {
-    padding: 15,
     backgroundColor: '#4c669f',
-    borderRadius: 10,
-    marginBottom: 10,
+    padding: 15,
+    borderRadius: 18,
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 0,
+    shadowColor: '#4c669f',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 4,
+    elevation: 2,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   editButton: {
     backgroundColor: '#3b5998',
@@ -372,14 +395,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#192f6a',
   },
   logoutButton: {
-    backgroundColor: '#ff3b30',
+    backgroundColor: '#e57373',
+    marginBottom: 24,
   },
-  buttonIcon: {
-    marginRight: 10,
-  },
-  buttonText: {
-    fontSize: 14,
+  title: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    marginBottom: 10,
+    color: '#4c669f',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
   },
 });
