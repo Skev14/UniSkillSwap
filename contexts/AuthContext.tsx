@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User, signOut as firebaseSignOut } from "firebase/auth";
 import { auth } from "../services/firebaseConfig";
+import { db } from '../services/firebaseConfig';
+import { doc, getDoc } from 'firebase/firestore';
 
 type AuthContextType = {
   user: User | null;
@@ -21,9 +23,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user ?? null);
       setLoading(false);
+      if (user) {
+        // Check if user is banned
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists() && userDoc.data().banned) {
+          alert('Your account has been banned.');
+          await firebaseSignOut(auth);
+          setUser(null);
+        }
+      }
     });
 
     return unsubscribe;

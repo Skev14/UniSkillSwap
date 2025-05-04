@@ -25,6 +25,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [credits, setCredits] = useState<number>(0);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const loadProfile = async () => {
     if (!user) return;
@@ -45,6 +46,7 @@ export default function HomeScreen() {
           bio: data.bio || ''
         };
         setProfile(profileData);
+        setUserRole(data.role || null);
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -215,6 +217,16 @@ export default function HomeScreen() {
             <Ionicons name="people-outline" size={20} color="#fff" style={styles.buttonIcon} />
             <Text style={styles.buttonText}>Find Study Partners</Text>
           </TouchableOpacity>
+
+          {userRole === 'admin' && (
+            <TouchableOpacity 
+              style={[styles.button, { backgroundColor: '#FFD600' }]} 
+              onPress={() => router.push('/(admin)/reports')}
+            >
+              <Ionicons name="shield-checkmark-outline" size={20} color="#4c669f" style={styles.buttonIcon} />
+              <Text style={[styles.buttonText, { color: '#4c669f' }]}>Admin Dashboard</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity 
             style={[styles.button, styles.logoutButton]} 
