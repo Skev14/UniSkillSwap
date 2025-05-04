@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Modal, TextInput, Alert, Image } from 'react-native';
 import { db } from '../../services/firebaseConfig';
 import { collection, getDocs, addDoc, serverTimestamp, deleteDoc, doc, updateDoc, arrayUnion, query, where } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { router } from 'expo-router';
 import GroupInvites from '../components/GroupInvites';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 interface Group {
   id: string;
@@ -32,6 +34,9 @@ export default function GroupsScreen() {
   const [platformUsers, setPlatformUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [showInviteSent, setShowInviteSent] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
 
   useEffect(() => {
     fetchGroups();
@@ -116,27 +121,24 @@ export default function GroupsScreen() {
       return;
     }
 
-    Alert.alert(
-      'Delete Group',
-      'Are you sure you want to delete this group? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteDoc(doc(db, 'groups', group.id));
-              fetchGroups();
-              Alert.alert('Success', 'Group deleted successfully');
-            } catch (error) {
-              console.error('Error deleting group:', error);
-              Alert.alert('Error', 'Failed to delete group');
-            }
-          },
-        },
-      ]
-    );
+    setGroupToDelete(group);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteGroup = async () => {
+    if (!user || !groupToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'groups', groupToDelete.id));
+      fetchGroups();
+      setShowDeleteModal(false);
+      setGroupToDelete(null);
+      // Optionally show a snackbar here for success
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      setShowDeleteModal(false);
+      setGroupToDelete(null);
+      Alert.alert('Error', 'Failed to delete group');
+    }
   };
 
   const handleInvite = (group: Group) => {
@@ -160,7 +162,8 @@ export default function GroupsScreen() {
         createdAt: serverTimestamp(),
       });
       
-      Alert.alert('Success', 'Invitation sent successfully');
+      setShowInviteSent(true);
+      setTimeout(() => setShowInviteSent(false), 2000);
       
       // Remove invited user from the list
       setPlatformUsers(prev => prev.filter(u => u.id !== userId));
@@ -170,8 +173,44 @@ export default function GroupsScreen() {
     }
   };
 
+  const handleJoinGroup = async (group: Group) => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to join a group.');
+      return;
+    }
+
+    try {
+      const groupRef = doc(db, 'groups', group.id);
+      await updateDoc(groupRef, {
+        members: arrayUnion(user.uid)
+      });
+      
+      // Add system message about user joining
+      const messagesRef = collection(db, 'groupMessages');
+      await addDoc(messagesRef, {
+        groupId: group.id,
+        senderId: 'system',
+        text: `${user.displayName || 'A new user'} joined the group`,
+        timestamp: serverTimestamp(),
+        type: 'system'
+      });
+
+      fetchGroups();
+      Alert.alert('Success', 'You have joined the group!');
+    } catch (error) {
+      console.error('Error joining group:', error);
+      Alert.alert('Error', 'Failed to join group');
+    }
+  };
+
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={['#4c669f', '#3b5998', '#192f6a']}
+        style={styles.header}
+      >
+        <Text style={styles.headerTitle}>Groups</Text>
+      </LinearGradient>
       <GroupInvites />
       <TouchableOpacity style={styles.createButton} onPress={handleCreateGroup}>
         <Text style={styles.createButtonText}>+ Create New Group</Text>
@@ -235,10 +274,17 @@ export default function GroupsScreen() {
                 data={platformUsers}
                 keyExtractor={item => item.id}
                 renderItem={({ item }) => (
-                  <View style={styles.userRow}>
-                    <View style={styles.userInfo}>
-                      <Text style={styles.userId}>{item.id}</Text>
-                      <Text style={styles.userBio} numberOfLines={1}>{item.bio}</Text>
+                  <View style={styles.inviteUserCard}>
+                    {item.photoURL ? (
+                      <Image source={{ uri: item.photoURL }} style={styles.inviteAvatar} />
+                    ) : (
+                      <View style={styles.inviteAvatarPlaceholder}>
+                        <Text style={styles.inviteAvatarText}>{item.id[0]?.toUpperCase() || '?'}</Text>
+                      </View>
+                    )}
+                    <View style={styles.inviteUserInfo}>
+                      <Text style={styles.inviteUserId}>{item.id}</Text>
+                      <Text style={styles.inviteUserBio} numberOfLines={2}>{item.bio}</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.inviteUserButton}
@@ -265,6 +311,29 @@ export default function GroupsScreen() {
         </View>
       </Modal>
 
+      {/* Custom Delete Group Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalTitle}>Delete Group</Text>
+            <Text style={styles.deleteModalText}>Are you sure you want to delete this group? This action cannot be undone.</Text>
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity onPress={() => setShowDeleteModal(false)}>
+                <Text style={styles.deleteCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteButtonModal} onPress={confirmDeleteGroup}>
+                <Text style={styles.deleteButtonModalText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {loading ? (
         <ActivityIndicator size="large" style={{ marginTop: 20 }} />
       ) : (
@@ -272,7 +341,7 @@ export default function GroupsScreen() {
           data={groups}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <View style={styles.groupRow}>
+            <View style={styles.groupCard}>
               <Text style={styles.groupName}>{item.name}</Text>
               <Text style={styles.groupDesc}>{item.description}</Text>
               <Text style={styles.groupMembers}>{item.members.length} members</Text>
@@ -286,12 +355,21 @@ export default function GroupsScreen() {
                 >
                   <Text style={styles.buttonText}>View</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.inviteButton} 
-                  onPress={() => handleInvite(item)}
-                >
-                  <Text style={styles.buttonText}>Invite</Text>
-                </TouchableOpacity>
+                {user && item.members.includes(user.uid) ? (
+                  <TouchableOpacity 
+                    style={styles.inviteButton} 
+                    onPress={() => handleInvite(item)}
+                  >
+                    <Text style={styles.buttonText}>Invite</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity 
+                    style={styles.joinButton} 
+                    onPress={() => handleJoinGroup(item)}
+                  >
+                    <Text style={styles.buttonText}>Join</Text>
+                  </TouchableOpacity>
+                )}
                 {user && item.createdBy === user.uid && (
                   <TouchableOpacity 
                     style={styles.deleteButton} 
@@ -306,6 +384,12 @@ export default function GroupsScreen() {
           contentContainerStyle={{ padding: 16 }}
         />
       )}
+      {showInviteSent && (
+        <View style={styles.snackbar}>
+          <Ionicons name="checkmark-circle" size={22} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={styles.snackbarText}>Invitation sent!</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -315,37 +399,73 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  header: {
+    padding: 20,
+    paddingTop: 60,
+    alignItems: 'center',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+  },
   createButton: {
-    backgroundColor: '#6B4EFF',
+    backgroundColor: '#4c669f',
     padding: 14,
     borderRadius: 20,
     margin: 16,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
   createButtonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
   },
-  groupRow: {
-    backgroundColor: '#f7f7f7',
-    borderRadius: 12,
-    padding: 16,
+  groupCard: {
+    flexDirection: 'column',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginBottom: 16,
+    marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
     elevation: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4c669f',
   },
   groupName: {
     fontWeight: 'bold',
     fontSize: 18,
     marginBottom: 4,
+    color: '#222',
   },
   groupDesc: {
     color: '#555',
     marginBottom: 8,
+    fontSize: 14,
   },
   groupMembers: {
     color: '#888',
     marginBottom: 8,
+    fontSize: 13,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -353,19 +473,28 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   viewButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#4c669f',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 16,
+    marginRight: 6,
   },
   inviteButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: '#3b5998',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 16,
+    marginRight: 6,
+  },
+  joinButton: {
+    backgroundColor: '#192f6a',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginRight: 6,
   },
   deleteButton: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#e57373',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 16,
@@ -425,31 +554,71 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  userRow: {
+  inviteUserCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4c669f',
   },
-  userInfo: {
-    flex: 1,
+  inviteAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: '#e1e1e1',
+    marginRight: 10,
   },
-  userId: {
+  inviteAvatarPlaceholder: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#4c669f',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  inviteAvatarText: {
+    fontSize: 18,
+    color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 2,
   },
-  userBio: {
+  inviteUserInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  inviteUserId: {
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginBottom: 2,
+    color: '#222',
+  },
+  inviteUserBio: {
     color: '#666',
-    fontSize: 14,
+    fontSize: 13,
   },
   inviteUserButton: {
-    backgroundColor: '#34C759',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    backgroundColor: '#4c669f',
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 16,
     marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
   inviteUserButtonText: {
     color: '#fff',
@@ -460,6 +629,82 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#666',
     marginVertical: 20,
+    fontSize: 16,
+  },
+  snackbar: {
+    position: 'absolute',
+    bottom: 32,
+    left: 24,
+    right: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4c669f',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 100,
+    alignSelf: 'center',
+  },
+  snackbarText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  deleteModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 28,
+    width: '85%',
+    alignItems: 'center',
+    elevation: 6,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#222',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  deleteModalText: {
+    fontSize: 16,
+    color: '#444',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    width: '100%',
+    gap: 16,
+  },
+  deleteCancelText: {
+    color: '#4c669f',
+    fontWeight: 'bold',
+    fontSize: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  deleteButtonModal: {
+    backgroundColor: '#4c669f',
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  deleteButtonModalText: {
+    color: '#fff',
+    fontWeight: 'bold',
     fontSize: 16,
   },
 }); 

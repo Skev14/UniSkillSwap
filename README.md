@@ -1,4 +1,5 @@
 # UniSkillSwap
+<<<<<<< HEAD
 
 A React Native application for skill swapping and learning between university students.
 
@@ -101,3 +102,6 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+=======
+Uni skill swapping mobile app react native, firebase app.
+>>>>>>> ba32f3a2c8d3656e5b4378fa64742df4aaab214c

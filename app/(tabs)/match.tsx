@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Image, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import Swiper from 'react-native-deck-swiper';
 import { useAuth } from '../../contexts/AuthContext';
 import { collection, doc, getDoc, getDocs, query, where, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
 import { ActivityIndicator } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 interface UserProfile {
   id: string;
@@ -149,7 +151,7 @@ export default function MatchScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#4c669f" />
       </View>
     );
   }
@@ -157,63 +159,93 @@ export default function MatchScreen() {
   if (profiles.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.noMatchesText}>No potential matches found</Text>
-        <Text style={styles.subtitle}>Check back later for new study partners!</Text>
+        <LinearGradient
+          colors={['#4c669f', '#3b5998', '#192f6a']}
+          style={styles.header}
+        >
+          <Text style={styles.title}>Recommended Users</Text>
+          <Text style={styles.subtitle}>No potential matches found</Text>
+          <Text style={styles.subtitle}>Check back later for new study partners!</Text>
+        </LinearGradient>
+        <TouchableOpacity style={styles.refreshButton} onPress={loadPotentialMatches}>
+          <Ionicons name="refresh" size={20} color="#4c669f" />
+          <Text style={styles.refreshButtonText}>Refresh</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={['#4c669f', '#3b5998', '#192f6a']}
+        style={styles.header}
+      >
+        <Text style={styles.title}>Recommended Users</Text>
+        <Text style={styles.subtitle}>These users match your skills and availability. Swipe right to match, left to skip.</Text>
+        <TouchableOpacity style={styles.refreshButton} onPress={loadPotentialMatches}>
+          <Ionicons name="refresh" size={20} color="#fff" />
+          <Text style={[styles.refreshButtonText, { color: '#fff' }]}>Refresh</Text>
+        </TouchableOpacity>
+      </LinearGradient>
+
       <Swiper
         ref={swiperRef}
         cards={profiles}
-        renderCard={(profile: UserProfile) => (
+        renderCard={(profile: UserProfile, idx: number) => (
           <View style={styles.card}>
-            {profile.photoURL ? (
-              <Image source={{ uri: profile.photoURL }} style={styles.cardImage} />
-            ) : (
-              <View style={styles.noPhotoContainer}>
-                <Text style={styles.noPhotoText}>No Photo</Text>
-              </View>
-            )}
-            <View style={styles.cardContent}>
-              <Text style={styles.bioText}>{profile.bio}</Text>
-              
-              <Text style={styles.sectionTitle}>Skills They Offer:</Text>
-              <View style={styles.chipContainer}>
-                {profile.skillsOffered.filter(Boolean).map((skill, idx) => (
-                  <View key={`${profile.id || 'unknown'}-offered-${skill || 'none'}-${idx}`} style={styles.chip}>
-                    <Text style={styles.chipText}>{skill}</Text>
+            <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+              {profile.photoURL ? (
+                <Image source={{ uri: profile.photoURL }} style={styles.cardImage} />
+              ) : (
+                <View style={styles.noPhotoContainer}>
+                  <Ionicons name="person" size={60} color="#666" />
+                </View>
+              )}
+              <View style={styles.cardContent}>
+                {/* Match Score */}
+                <View style={styles.matchScoreRow}>
+                  <Ionicons name="star" size={18} color="#FFD700" />
+                  <Text style={styles.matchScoreText}>Match Score: {calculateMatchScore(currentProfile!, profile)}</Text>
+                </View>
+                <Text style={styles.bioText}>{profile.bio}</Text>
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Skills They Offer</Text>
+                  <View style={styles.chipContainer}>
+                    {profile.skillsOffered.filter(Boolean).map((skill, idx) => (
+                      <View key={`${profile.id || 'unknown'}-offered-${skill || 'none'}-${idx}`} style={styles.chip}>
+                        <Text style={styles.chipText}>{skill}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
-
-              <Text style={styles.sectionTitle}>Skills They Need:</Text>
-              <View style={styles.chipContainer}>
-                {profile.skillsNeeded.filter(Boolean).map((skill, idx) => (
-                  <View key={`${profile.id || 'unknown'}-needed-${skill || 'none'}-${idx}`} style={styles.chip}>
-                    <Text style={styles.chipText}>{skill}</Text>
+                </View>
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Skills They Need</Text>
+                  <View style={styles.chipContainer}>
+                    {profile.skillsNeeded.filter(Boolean).map((skill, idx) => (
+                      <View key={`${profile.id || 'unknown'}-needed-${skill || 'none'}-${idx}`} style={styles.chip}>
+                        <Text style={styles.chipText}>{skill}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
-
-              <Text style={styles.sectionTitle}>Availability:</Text>
-              <View style={styles.chipContainer}>
-                {profile.availability.filter(Boolean).map((time, idx) => (
-                  <View key={`${profile.id || 'unknown'}-avail-${time || 'none'}-${idx}`} style={styles.chip}>
-                    <Text style={styles.chipText}>{time}</Text>
+                </View>
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Availability</Text>
+                  <View style={styles.chipContainer}>
+                    {profile.availability.filter(Boolean).map((time, idx) => (
+                      <View key={`${profile.id || 'unknown'}-avail-${time || 'none'}-${idx}`} style={styles.chip}>
+                        <Text style={styles.chipText}>{time}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
+                </View>
               </View>
-            </View>
+            </ScrollView>
           </View>
         )}
         onSwipedLeft={(cardIndex) => handleSwipe('right', profiles[cardIndex])}
         onSwipedRight={(cardIndex) => handleSwipe('left', profiles[cardIndex])}
         onSwipedAll={() => {
-          console.log('No more cards!');
-          // Optionally reload matches here
           loadPotentialMatches();
         }}
         cardIndex={0}
@@ -227,7 +259,20 @@ export default function MatchScreen() {
               label: {
                 backgroundColor: '#4CAF50',
                 color: '#fff',
-                fontSize: 24
+                fontSize: 24,
+                padding: 10,
+                borderRadius: 10,
+                ...Platform.select({
+                  ios: {
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 3.84,
+                  },
+                  android: {
+                    elevation: 5,
+                  },
+                }),
               },
               wrapper: {
                 flexDirection: 'column',
@@ -239,12 +284,25 @@ export default function MatchScreen() {
             }
           },
           right: {
-            title: 'NOPE',
+            title: 'SKIP',
             style: {
               label: {
                 backgroundColor: '#FF0000',
                 color: '#fff',
-                fontSize: 24
+                fontSize: 24,
+                padding: 10,
+                borderRadius: 10,
+                ...Platform.select({
+                  ios: {
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 3.84,
+                  },
+                  android: {
+                    elevation: 5,
+                  },
+                }),
               },
               wrapper: {
                 flexDirection: 'column',
@@ -256,10 +314,6 @@ export default function MatchScreen() {
             }
           }
         }}
-        animateOverlayLabelsOpacity
-        animateCardOpacity
-        swipeBackCard
-        infinite={false}
       />
     </View>
   );
@@ -268,83 +322,144 @@ export default function MatchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5'
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    alignItems: 'center',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 12,
   },
   card: {
-    flex: 1,
+    backgroundColor: '#fff',
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#E8E8E8',
-    backgroundColor: 'white',
-    marginVertical: 20,
-    marginHorizontal: 10,
-    overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    height: Dimensions.get('window').height * 0.68,
+    marginTop: 90,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
   cardImage: {
     width: '100%',
-    height: 300,
-    resizeMode: 'cover'
+    height: '40%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   noPhotoContainer: {
     width: '100%',
-    height: 300,
-    backgroundColor: '#E1E1E1',
+    height: '40%',
+    backgroundColor: '#f0f0f0',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     justifyContent: 'center',
-    alignItems: 'center'
-  },
-  noPhotoText: {
-    fontSize: 18,
-    color: '#666'
+    alignItems: 'center',
   },
   cardContent: {
-    padding: 20
+    padding: 10,
+    flex: 1,
   },
   bioText: {
     fontSize: 16,
     color: '#333',
-    marginBottom: 15
+    marginBottom: 18,
+    lineHeight: 24,
+  },
+  section: {
+    marginBottom: 18,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
     color: '#333',
-    marginTop: 10,
-    marginBottom: 8
+    marginBottom: 10,
   },
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 10
+    gap: 12,
+    marginBottom: 4,
   },
   chip: {
-    backgroundColor: '#E8E8E8',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
     borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    margin: 4
+    marginBottom: 8,
   },
   chipText: {
+    color: '#333',
     fontSize: 14,
-    color: '#333'
   },
-  noMatchesText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 20
+  matchScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 10
-  }
+  matchScoreText: {
+    marginLeft: 6,
+    color: '#333',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginTop: 10,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  refreshButtonText: {
+    marginLeft: 8,
+    fontWeight: '600',
+    fontSize: 15,
+    color: '#4c669f',
+  },
 }); 

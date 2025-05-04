@@ -6,11 +6,11 @@ const dummyUsers = [
   {
     id: 'dummy1',
     photoURL: 'https://xsgames.co/randomusers/assets/avatars/female/1.jpg',
-    bio: 'Computer Science student looking to improve my math skills. I can help with programming!',
-    skillsOffered: ['JavaScript', 'React Native', 'Python'],
+    bio: 'English tutor looking to help others improve their language skills.',
+    skillsOffered: ['English', 'JavaScript', 'Python'],
     skillsNeeded: ['Calculus', 'Linear Algebra', 'Statistics'],
-    availability: ['Morning', 'Weekend'],
-    createdAt: null // Will be set to serverTimestamp() during creation
+    availability: ['Morning', 'Friday', 'Monday'],
+    createdAt: null
   },
   {
     id: 'dummy2',
@@ -46,6 +46,24 @@ const dummyUsers = [
     skillsOffered: ['Essay Writing', 'Creative Writing', 'Literature Analysis'],
     skillsNeeded: ['Digital Marketing', 'Social Media', 'Graphic Design'],
     availability: ['Evening', 'Weekend'],
+    createdAt: null
+  },
+  {
+    id: 'dummy6',
+    photoURL: 'https://xsgames.co/randomusers/assets/avatars/male/6.jpg',
+    bio: 'I am a JavaScript and React Native developer, available in the Morning.',
+    skillsOffered: ['React Native', 'JavaScript'], // 1 skill match with current user's skillsNeeded
+    skillsNeeded: ['HTML'],
+    availability: ['Morning'], // 1 availability overlap with current user's ['Morning']
+    createdAt: null
+  },
+  {
+    id: 'dummy7',
+    photoURL: 'https://xsgames.co/randomusers/assets/avatars/female/7.jpg',
+    bio: 'Psychology major who loves to chat in the evenings.',
+    skillsOffered: ['Psychology'],
+    skillsNeeded: ['Mathematics'],
+    availability: ['Evening', 'Wednesday', 'Friday'],
     createdAt: null
   }
 ];

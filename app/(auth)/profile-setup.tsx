@@ -8,6 +8,10 @@ import { Chip, TextInput as PaperTextInput } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ActivityIndicator } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { Surface } from 'react-native-paper';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const SUGGESTED_SKILLS = [
   'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science',
@@ -25,6 +29,8 @@ export default function ProfileSetupScreen() {
   const isEditing = mode === 'edit';
   
   const [formData, setFormData] = useState({
+    name: '',
+    username: '',
     skillsOffered: [] as string[],
     skillsNeeded: [] as string[],
     availability: [] as string[],
@@ -52,6 +58,8 @@ export default function ProfileSetupScreen() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setFormData({
+          name: data.name || '',
+          username: data.username || '',
           skillsOffered: data.skillsOffered || [],
           skillsNeeded: data.skillsNeeded || [],
           availability: data.availability || [],
@@ -163,12 +171,29 @@ export default function ProfileSetupScreen() {
       return;
     }
 
+    if (!formData.username.trim()) {
+      setError('Please enter a username');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('username', '==', formData.username.trim()));
+      const snap = await getDocs(q);
+      if (!isEditing && !snap.empty) {
+        setError('Username is already taken. Please choose another.');
+        setLoading(false);
+        return;
+      }
+
       await setDoc(doc(db, 'users', user.uid), {
         ...formData,
+        username: formData.username.trim(),
+        name: formData.name || user.email,
+        credits: 100, // Start with 100 credits
         updatedAt: new Date().toISOString(),
         ...(isEditing ? {} : { createdAt: new Date().toISOString() })
       });
@@ -191,157 +216,187 @@ export default function ProfileSetupScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>{isEditing ? 'Edit Your Profile' : 'Set Up Your Profile'}</Text>
-      
-      <TouchableOpacity 
-        style={styles.imageContainer} 
-        onPress={pickImage}
-        disabled={uploading}
+    <ScrollView style={{ flex: 1, backgroundColor: '#f5f5f5' }} contentContainerStyle={{ paddingBottom: 40 }}>
+      <LinearGradient
+        colors={["#4c669f", "#3b5998", "#192f6a"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientHeader}
       >
-        {formData.photoURL ? (
-          <Image 
-            source={{ uri: formData.photoURL }} 
-            style={styles.profileImage} 
+        <Ionicons name="person-circle" size={40} color="#fff" style={{ alignSelf: 'center', marginBottom: 8 }} />
+        <Text style={styles.headerTitle}>{isEditing ? 'Edit Your Profile' : 'Set Up Your Profile'}</Text>
+      </LinearGradient>
+      <Surface style={styles.surface} elevation={4}>
+        <TouchableOpacity 
+          style={styles.imageContainer} 
+          onPress={pickImage}
+          disabled={uploading}
+        >
+          {formData.photoURL ? (
+            <Image 
+              source={{ uri: formData.photoURL }} 
+              style={styles.profileImage} 
+            />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imagePlaceholderText}>Add Photo</Text>
+            </View>
+          )}
+          {uploading && (
+            <View style={styles.uploadingOverlay}>
+              <ActivityIndicator color="#fff" />
+            </View>
+          )}
+          <Text style={styles.updatePhotoText}>Tap to update photo</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Your Name</Text>
+        <PaperTextInput
+          value={formData.name}
+          onChangeText={name => setFormData(prev => ({ ...prev, name }))}
+          placeholder="Enter your name"
+          style={styles.input}
+        />
+
+        <Text style={styles.sectionTitle}>Username</Text>
+        <PaperTextInput
+          value={formData.username}
+          onChangeText={username => setFormData(prev => ({ ...prev, username }))}
+          placeholder="Enter a unique username"
+          style={styles.input}
+        />
+
+        <Text style={styles.sectionTitle}>Skills You Can Offer</Text>
+        <View style={styles.inputContainer}>
+          <PaperTextInput
+            value={newSkillOffered}
+            onChangeText={setNewSkillOffered}
+            placeholder="Enter a skill..."
+            style={styles.input}
+            right={
+              <PaperTextInput.Icon 
+                icon="plus"
+                onPress={() => addCustomSkill('skillsOffered', newSkillOffered)}
+              />
+            }
+            onSubmitEditing={() => addCustomSkill('skillsOffered', newSkillOffered)}
           />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>Add Photo</Text>
-          </View>
-        )}
-        {uploading && (
-          <View style={styles.uploadingOverlay}>
-            <ActivityIndicator color="#fff" />
-          </View>
-        )}
-        <Text style={styles.updatePhotoText}>Tap to update photo</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.sectionTitle}>Skills You Can Offer</Text>
-      <View style={styles.inputContainer}>
-        <PaperTextInput
-          value={newSkillOffered}
-          onChangeText={setNewSkillOffered}
-          placeholder="Enter a skill..."
-          style={styles.input}
-          right={
-            <PaperTextInput.Icon 
-              icon="plus"
-              onPress={() => addCustomSkill('skillsOffered', newSkillOffered)}
-            />
-          }
-          onSubmitEditing={() => addCustomSkill('skillsOffered', newSkillOffered)}
-        />
-      </View>
-      <Text style={styles.subtitle}>Suggested Skills:</Text>
-      <View style={styles.chipContainer}>
-        {SUGGESTED_SKILLS.map((skill) => (
-          <Chip
-            key={skill}
-            selected={formData.skillsOffered.includes(skill)}
-            onPress={() => toggleSkill(skill, 'skillsOffered')}
-            style={styles.chip}
-          >
-            {skill}
-          </Chip>
-        ))}
-      </View>
-      <Text style={styles.subtitle}>Your Custom Skills:</Text>
-      <View style={styles.chipContainer}>
-        {formData.skillsOffered
-          .filter(skill => !SUGGESTED_SKILLS.includes(skill))
-          .map((skill) => (
+        </View>
+        <Text style={styles.subtitle}>Suggested Skills:</Text>
+        <View style={styles.chipContainer}>
+          {SUGGESTED_SKILLS.map((skill) => (
             <Chip
               key={skill}
-              selected
-              onClose={() => removeSkill('skillsOffered', skill)}
-              style={styles.chip}
+              selected={formData.skillsOffered.includes(skill)}
+              onPress={() => toggleSkill(skill, 'skillsOffered')}
+              style={[styles.chip, formData.skillsOffered.includes(skill) && styles.chipSelected]}
+              selectedColor="#fff"
             >
               {skill}
             </Chip>
           ))}
-      </View>
+        </View>
+        <Text style={styles.subtitle}>Your Custom Skills:</Text>
+        <View style={styles.chipContainer}>
+          {formData.skillsOffered
+            .filter(skill => !SUGGESTED_SKILLS.includes(skill))
+            .map((skill) => (
+              <Chip
+                key={skill}
+                selected
+                onClose={() => removeSkill('skillsOffered', skill)}
+                style={[styles.chip, styles.chipSelected]}
+                selectedColor="#fff"
+              >
+                {skill}
+              </Chip>
+            ))}
+        </View>
 
-      <Text style={styles.sectionTitle}>Skills You Need Help With</Text>
-      <View style={styles.inputContainer}>
-        <PaperTextInput
-          value={newSkillNeeded}
-          onChangeText={setNewSkillNeeded}
-          placeholder="Enter a skill..."
-          style={styles.input}
-          right={
-            <PaperTextInput.Icon 
-              icon="plus"
-              onPress={() => addCustomSkill('skillsNeeded', newSkillNeeded)}
-            />
-          }
-          onSubmitEditing={() => addCustomSkill('skillsNeeded', newSkillNeeded)}
-        />
-      </View>
-      <Text style={styles.subtitle}>Suggested Skills:</Text>
-      <View style={styles.chipContainer}>
-        {SUGGESTED_SKILLS.map((skill) => (
-          <Chip
-            key={skill}
-            selected={formData.skillsNeeded.includes(skill)}
-            onPress={() => toggleSkill(skill, 'skillsNeeded')}
-            style={styles.chip}
-          >
-            {skill}
-          </Chip>
-        ))}
-      </View>
-      <Text style={styles.subtitle}>Your Custom Skills:</Text>
-      <View style={styles.chipContainer}>
-        {formData.skillsNeeded
-          .filter(skill => !SUGGESTED_SKILLS.includes(skill))
-          .map((skill) => (
+        <Text style={styles.sectionTitle}>Skills You Need Help With</Text>
+        <View style={styles.inputContainer}>
+          <PaperTextInput
+            value={newSkillNeeded}
+            onChangeText={setNewSkillNeeded}
+            placeholder="Enter a skill..."
+            style={styles.input}
+            right={
+              <PaperTextInput.Icon 
+                icon="plus"
+                onPress={() => addCustomSkill('skillsNeeded', newSkillNeeded)}
+              />
+            }
+            onSubmitEditing={() => addCustomSkill('skillsNeeded', newSkillNeeded)}
+          />
+        </View>
+        <Text style={styles.subtitle}>Suggested Skills:</Text>
+        <View style={styles.chipContainer}>
+          {SUGGESTED_SKILLS.map((skill) => (
             <Chip
               key={skill}
-              selected
-              onClose={() => removeSkill('skillsNeeded', skill)}
-              style={styles.chip}
+              selected={formData.skillsNeeded.includes(skill)}
+              onPress={() => toggleSkill(skill, 'skillsNeeded')}
+              style={[styles.chip, formData.skillsNeeded.includes(skill) && styles.chipSelected]}
+              selectedColor="#fff"
             >
               {skill}
             </Chip>
           ))}
-      </View>
+        </View>
+        <Text style={styles.subtitle}>Your Custom Skills:</Text>
+        <View style={styles.chipContainer}>
+          {formData.skillsNeeded
+            .filter(skill => !SUGGESTED_SKILLS.includes(skill))
+            .map((skill) => (
+              <Chip
+                key={skill}
+                selected
+                onClose={() => removeSkill('skillsNeeded', skill)}
+                style={[styles.chip, styles.chipSelected]}
+                selectedColor="#fff"
+              >
+                {skill}
+              </Chip>
+            ))}
+        </View>
 
-      <Text style={styles.sectionTitle}>Availability</Text>
-      <View style={styles.chipContainer}>
-        {AVAILABILITY.map((time) => (
-          <Chip
-            key={time}
-            selected={formData.availability.includes(time)}
-            onPress={() => toggleAvailability(time)}
-            style={styles.chip}
-          >
-            {time}
-          </Chip>
-        ))}
-      </View>
+        <Text style={styles.sectionTitle}>Availability</Text>
+        <View style={styles.chipContainer}>
+          {AVAILABILITY.map((time) => (
+            <Chip
+              key={time}
+              selected={formData.availability.includes(time)}
+              onPress={() => toggleAvailability(time)}
+              style={[styles.chip, formData.availability.includes(time) && styles.chipSelected]}
+              selectedColor="#fff"
+            >
+              {time}
+            </Chip>
+          ))}
+        </View>
 
-      <Text style={styles.sectionTitle}>Bio</Text>
-      <TextInput
-        style={styles.bioInput}
-        multiline
-        numberOfLines={4}
-        placeholder="Tell us about yourself..."
-        value={formData.bio}
-        onChangeText={(text) => setFormData(prev => ({ ...prev, bio: text }))}
-      />
+        <Text style={styles.sectionTitle}>Bio</Text>
+        <TextInput
+          style={styles.bioInput}
+          multiline
+          numberOfLines={4}
+          placeholder="Tell us about yourself..."
+          value={formData.bio}
+          onChangeText={(text) => setFormData(prev => ({ ...prev, bio: text }))}
+        />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <TouchableOpacity 
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleSubmit}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>
-          {loading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Profile')}
-        </Text>
-      </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Profile')}
+          </Text>
+        </TouchableOpacity>
+      </Surface>
     </ScrollView>
   );
 }
@@ -429,12 +484,17 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   button: {
-    backgroundColor: '#6B4EFF',
+    backgroundColor: '#4c669f',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 18,
     alignItems: 'center',
     marginTop: 20,
-    marginBottom: 40,
+    marginBottom: 0,
+    shadowColor: '#4c669f',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 4,
+    elevation: 2,
   },
   buttonDisabled: {
     backgroundColor: '#ccc',
@@ -461,5 +521,41 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 10,
     marginBottom: 5,
+  },
+  gradientHeader: {
+    paddingTop: 60,
+    paddingBottom: 32,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 0,
+  },
+  surface: {
+    marginHorizontal: 18,
+    marginTop: -30,
+    padding: 24,
+    borderRadius: 22,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  chipSelected: {
+    backgroundColor: '#4c669f',
   },
 }); 

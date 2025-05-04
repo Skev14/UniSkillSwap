@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet, FlatList, Alert, Image } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { db } from '../../services/firebaseConfig';
 import { doc, getDoc, updateDoc, arrayUnion, collection, getDocs, query, where } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface Group {
   id: string;
@@ -134,58 +136,78 @@ export default function GroupDetailsScreen() {
   const isMember = user && group.members.includes(user.uid);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.groupName}>{group.name}</Text>
-      <Text style={styles.groupDesc}>{group.description}</Text>
-      <Text style={styles.sectionTitle}>Members ({group.members.length})</Text>
-      <FlatList
-        data={memberProfiles}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.memberRow}>
-            {item.photoURL ? (
-              <Image source={{ uri: item.photoURL }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>{item.bio[0]?.toUpperCase()}</Text>
-              </View>
-            )}
-            <View style={styles.memberInfo}>
-              <Text style={styles.memberBio}>{item.bio}</Text>
-              {item.skillsOffered.length > 0 && (
-                <Text style={styles.memberSkills}>
-                  Skills: {item.skillsOffered.slice(0, 3).join(', ')}
-                  {item.skillsOffered.length > 3 ? ' ...' : ''}
-                </Text>
-              )}
-              {item.id === group.createdBy && (
-                <View style={styles.creatorBadge}>
-                  <Text style={styles.creatorBadgeText}>Creator</Text>
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#4c669f', '#3b5998', '#192f6a']}
+          style={styles.header}
+        >
+          <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
+        </LinearGradient>
+        <TouchableOpacity 
+          style={styles.simpleBackButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={32} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.groupDesc}>{group.description}</Text>
+        {isMember && (
+          <TouchableOpacity 
+            style={styles.chatButton} 
+            onPress={() => router.push({
+              pathname: "/groupChat",
+              params: { groupId: group.id, groupName: group.name }
+            })}
+          >
+            <Text style={styles.chatButtonText}>Open Chat</Text>
+          </TouchableOpacity>
+        )}
+        <Text style={styles.sectionTitle}>Members ({group.members.length})</Text>
+        <FlatList
+          data={memberProfiles}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.memberCard}>
+              {item.photoURL ? (
+                <Image source={{ uri: item.photoURL }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarText}>{item.bio[0]?.toUpperCase() || 'U'}</Text>
                 </View>
               )}
+              <View style={styles.memberInfo}>
+                <Text style={styles.memberBio}>{item.bio}</Text>
+                {item.skillsOffered.length > 0 && (
+                  <View style={styles.chipRow}>
+                    {item.skillsOffered.slice(0, 3).map((skill, idx) => (
+                      <View key={skill + idx} style={styles.skillChip}><Text style={styles.skillChipText}>{skill}</Text></View>
+                    ))}
+                  </View>
+                )}
+                {item.id === group.createdBy && (
+                  <View style={styles.creatorBadge}>
+                    <Text style={styles.creatorBadgeText}>Creator</Text>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
+          )}
+          style={styles.memberList}
+        />
+        {!isMember && (
+          <TouchableOpacity 
+            style={styles.joinButton} 
+            onPress={handleJoin} 
+            disabled={joining}
+          >
+            <Text style={styles.joinButtonText}>
+              {joining ? 'Joining...' : 'Join Group'}
+            </Text>
+          </TouchableOpacity>
         )}
-        style={styles.memberList}
-      />
-      {!isMember && (
-        <TouchableOpacity 
-          style={styles.joinButton} 
-          onPress={handleJoin} 
-          disabled={joining}
-        >
-          <Text style={styles.joinButtonText}>
-            {joining ? 'Joining...' : 'Join Group'}
-          </Text>
-        </TouchableOpacity>
-      )}
-      <TouchableOpacity 
-        onPress={() => router.back()} 
-        style={styles.backButton}
-      >
-        <Text style={styles.backButtonText}>Back</Text>
-      </TouchableOpacity>
-    </View>
+      </View>
+    </>
   );
 }
 
@@ -193,108 +215,185 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    padding: 20,
   },
-  groupName: {
+  header: {
+    padding: 20,
+    paddingTop: 60,
+    alignItems: 'center',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  headerTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
-    fontSize: 24,
-    marginBottom: 8,
-    color: '#1a1a1a',
+    color: '#fff',
+    marginBottom: 10,
+    textAlign: 'center',
+    maxWidth: '90%',
   },
   groupDesc: {
-    color: '#666',
-    marginBottom: 20,
-    fontSize: 16,
-    lineHeight: 22,
+    color: '#555',
+    marginBottom: 16,
+    fontSize: 15,
+    textAlign: 'center',
+    marginHorizontal: 16,
+  },
+  chatButton: {
+    backgroundColor: '#4c669f',
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    marginHorizontal: 16,
+    marginBottom: 18,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  chatButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 17,
   },
   sectionTitle: {
-    fontWeight: 'bold',
     fontSize: 18,
-    marginBottom: 12,
-    color: '#333',
+    fontWeight: 'bold',
+    marginBottom: 10,
+    marginLeft: 16,
+    color: '#222',
   },
   memberList: {
-    marginBottom: 16,
+    paddingHorizontal: 8,
   },
-  memberRow: {
+  memberCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    marginHorizontal: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4c669f',
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: '#e1e1e1',
+    marginRight: 10,
+    marginTop: 2,
   },
   avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#6B4EFF',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#4c669f',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
+    marginTop: 2,
   },
   avatarText: {
-    color: '#fff',
     fontSize: 20,
+    color: '#fff',
     fontWeight: 'bold',
   },
   memberInfo: {
     flex: 1,
+    justifyContent: 'center',
   },
   memberBio: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: 15,
+    color: '#222',
     marginBottom: 4,
   },
-  memberSkills: {
-    fontSize: 14,
-    color: '#666',
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 4,
+  },
+  skillChip: {
+    backgroundColor: '#e3eaff',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginRight: 4,
+    marginBottom: 2,
+  },
+  skillChipText: {
+    fontSize: 12,
+    color: '#333',
   },
   creatorBadge: {
-    backgroundColor: '#FFD700',
+    backgroundColor: '#FFD600',
+    borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
     alignSelf: 'flex-start',
     marginTop: 4,
   },
   creatorBadgeText: {
-    color: '#000',
-    fontSize: 12,
+    color: '#222',
     fontWeight: 'bold',
+    fontSize: 12,
   },
   joinButton: {
-    backgroundColor: '#6B4EFF',
-    borderRadius: 12,
+    backgroundColor: '#4c669f',
+    borderRadius: 20,
     paddingVertical: 14,
     paddingHorizontal: 24,
+    marginHorizontal: 16,
+    marginTop: 18,
     alignItems: 'center',
-    marginBottom: 16,
-    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
   joinButtonText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 17,
   },
   backButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    marginTop: 18,
+    alignSelf: 'center',
+    padding: 8,
   },
   backButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
+    color: '#4c669f',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  simpleBackButton: {
+    position: 'absolute',
+    top: 38,
+    left: 16,
+    zIndex: 10,
+    backgroundColor: 'transparent',
+    padding: 4,
   },
 }); 

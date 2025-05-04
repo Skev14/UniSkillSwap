@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../services/firebaseConfig';
 import { collection, query, where, getDocs, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface ChatPreview {
   userId: string;
@@ -11,6 +12,16 @@ interface ChatPreview {
   timestamp: any;
   photoURL?: string;
   name?: string;
+  username?: string;
+}
+
+interface UserData {
+  name: string;
+  username?: string;
+  photoURL?: string;
+  displayName?: string;
+  email?: string;
+  id?: string;
 }
 
 export default function MessagesScreen() {
@@ -46,14 +57,15 @@ export default function MessagesScreen() {
         if (otherUserId && !chatMap.has(otherUserId)) {
           // Get user profile
           const userDoc = await getDoc(doc(db, 'users', otherUserId));
-          const userData = userDoc.data();
+          const userData = userDoc.data() as UserData;
           
           chatMap.set(otherUserId, {
             userId: otherUserId,
             lastMessage: data.text,
             timestamp: data.timestamp,
             photoURL: userData?.photoURL,
-            name: userData?.name || 'Anonymous'
+            name: userData?.name || userData?.displayName || userData?.username || userData?.email || userData?.id || userDoc.id,
+            username: userData?.username
           });
         }
       }
@@ -92,13 +104,19 @@ export default function MessagesScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Messages</Text>
+      <LinearGradient
+        colors={['#4c669f', '#3b5998', '#192f6a']}
+        style={styles.header}
+      >
+        <Text style={styles.headerTitle}>Messages</Text>
+      </LinearGradient>
       <FlatList
         data={chats}
         keyExtractor={item => item.userId}
+        contentContainerStyle={{ paddingTop: 8 }}
         renderItem={({ item }) => (
           <TouchableOpacity 
-            style={styles.chatItem}
+            style={styles.chatCard}
             onPress={() => router.push({ pathname: '/chat', params: { userId: item.userId } })}
           >
             {item.photoURL ? (
@@ -110,11 +128,14 @@ export default function MessagesScreen() {
             )}
             <View style={styles.chatInfo}>
               <Text style={styles.name}>{item.name}</Text>
+              {item.username && (
+                <Text style={styles.username}>@{item.username}</Text>
+              )}
               <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage}</Text>
+              <Text style={styles.timestamp}>
+                {item.timestamp?.toDate ? new Date(item.timestamp.toDate()).toLocaleDateString() : 'Just now'}
+              </Text>
             </View>
-            <Text style={styles.timestamp}>
-              {item.timestamp?.toDate ? new Date(item.timestamp.toDate()).toLocaleDateString() : 'Just now'}
-            </Text>
           </TouchableOpacity>
         )}
       />
@@ -125,36 +146,61 @@ export default function MessagesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 0,
     backgroundColor: '#fff',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
+  header: {
+    padding: 20,
+    paddingTop: 60,
+    alignItems: 'center',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  chatItem: {
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  chatCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4c669f',
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: '#e1e1e1',
+    marginRight: 10,
   },
   avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#ccc',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#e1e1e1',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   avatarText: {
     fontSize: 20,
@@ -162,19 +208,29 @@ const styles = StyleSheet.create({
   },
   chatInfo: {
     flex: 1,
+    justifyContent: 'center',
   },
   name: {
     fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 4,
+    fontSize: 15,
+    marginBottom: 2,
+    color: '#222',
+  },
+  username: {
+    fontSize: 13,
+    color: '#b0b0b0',
+    marginTop: 2,
+    marginBottom: 2,
   },
   lastMessage: {
     color: '#666',
-    fontSize: 14,
+    fontSize: 13,
+    marginBottom: 4,
   },
   timestamp: {
     color: '#999',
-    fontSize: 12,
+    fontSize: 11,
+    alignSelf: 'flex-end',
   },
   centered: {
     flex: 1,

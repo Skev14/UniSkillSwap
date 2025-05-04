@@ -9,6 +9,17 @@ export interface UserProfile {
   bio: string;
   createdAt: Timestamp;
   photoURL?: string; // Optional for now
+  credits: number; // Credits earned by helping others
+}
+
+export interface CreditTransaction {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  amount: number;
+  type: 'earn' | 'spend';
+  description: string;
+  createdAt: Timestamp;
 }
 
 // Pre-defined skills for dropdown selection
