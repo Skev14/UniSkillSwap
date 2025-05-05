@@ -18,6 +18,7 @@ interface Group {
 
 interface User {
   id: string;
+  username?: string;
   photoURL?: string;
   bio: string;
 }
@@ -37,10 +38,14 @@ export default function GroupsScreen() {
   const [showInviteSent, setShowInviteSent] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
+  const [pendingInvites, setPendingInvites] = useState<string[]>([]);
 
   useEffect(() => {
     fetchGroups();
-  }, []);
+    if (user) {
+      fetchPendingInvites();
+    }
+  }, [user]);
 
   const fetchGroups = async () => {
     setLoading(true);
@@ -73,6 +78,7 @@ export default function GroupsScreen() {
       const userList: User[] = snap.docs
         .map(docSnap => ({
           id: docSnap.id,
+          username: docSnap.data().username,
           photoURL: docSnap.data().photoURL,
           bio: docSnap.data().bio || 'No bio available',
         }))
@@ -83,6 +89,23 @@ export default function GroupsScreen() {
       Alert.alert('Error', 'Could not load users');
     } finally {
       setLoadingUsers(false);
+    }
+  };
+
+  const fetchPendingInvites = async () => {
+    if (!user) return;
+    try {
+      const invitationsRef = collection(db, 'invitations');
+      const q = query(
+        invitationsRef,
+        where('inviteeId', '==', user.uid),
+        where('status', '==', 'pending')
+      );
+      const snap = await getDocs(q);
+      const groupIds = snap.docs.map(docSnap => docSnap.data().groupId);
+      setPendingInvites(groupIds);
+    } catch (error) {
+      console.error('Error fetching pending invites:', error);
     }
   };
 
@@ -128,7 +151,30 @@ export default function GroupsScreen() {
   const confirmDeleteGroup = async () => {
     if (!user || !groupToDelete) return;
     try {
+      // Delete the group document
       await deleteDoc(doc(db, 'groups', groupToDelete.id));
+
+      // Delete all invitations for this group
+      const invitationsRef = collection(db, 'invitations');
+      const invitesSnap = await getDocs(query(invitationsRef, where('groupId', '==', groupToDelete.id)));
+      for (const invite of invitesSnap.docs) {
+        await deleteDoc(invite.ref);
+      }
+
+      // Delete all join requests for this group
+      const joinRequestsRef = collection(db, 'joinRequests');
+      const joinReqSnap = await getDocs(query(joinRequestsRef, where('groupId', '==', groupToDelete.id)));
+      for (const req of joinReqSnap.docs) {
+        await deleteDoc(req.ref);
+      }
+
+      // Delete all group messages for this group
+      const groupMessagesRef = collection(db, 'groupMessages');
+      const msgSnap = await getDocs(query(groupMessagesRef, where('groupId', '==', groupToDelete.id)));
+      for (const msg of msgSnap.docs) {
+        await deleteDoc(msg.ref);
+      }
+
       fetchGroups();
       setShowDeleteModal(false);
       setGroupToDelete(null);
@@ -173,33 +219,27 @@ export default function GroupsScreen() {
     }
   };
 
-  const handleJoinGroup = async (group: Group) => {
+  const handleRequestToJoin = async (group: Group) => {
     if (!user) {
-      Alert.alert('Error', 'You must be logged in to join a group.');
+      Alert.alert('Error', 'You must be logged in to request to join a group.');
       return;
     }
 
     try {
-      const groupRef = doc(db, 'groups', group.id);
-      await updateDoc(groupRef, {
-        members: arrayUnion(user.uid)
+      // Create a join request document
+      const requestsRef = collection(db, 'joinRequests');
+      await addDoc(requestsRef, {
+        groupId: group.id,
+        groupName: group.name,
+        userId: user.uid,
+        status: 'pending',
+        createdAt: serverTimestamp(),
       });
       
-      // Add system message about user joining
-      const messagesRef = collection(db, 'groupMessages');
-      await addDoc(messagesRef, {
-        groupId: group.id,
-        senderId: 'system',
-        text: `${user.displayName || 'A new user'} joined the group`,
-        timestamp: serverTimestamp(),
-        type: 'system'
-      });
-
-      fetchGroups();
-      Alert.alert('Success', 'You have joined the group!');
+      Alert.alert('Success', 'Join request sent! The group creator will be notified.');
     } catch (error) {
-      console.error('Error joining group:', error);
-      Alert.alert('Error', 'Failed to join group');
+      console.error('Error sending join request:', error);
+      Alert.alert('Error', 'Failed to send join request');
     }
   };
 
@@ -283,7 +323,13 @@ export default function GroupsScreen() {
                       </View>
                     )}
                     <View style={styles.inviteUserInfo}>
-                      <Text style={styles.inviteUserId}>{item.id}</Text>
+                      <Text style={styles.inviteUserId}>
+                        {item.username
+                          ? item.username
+                          : item.id.startsWith('dummy')
+                            ? `dummy (${item.id})`
+                            : item.id}
+                      </Text>
                       <Text style={styles.inviteUserBio} numberOfLines={2}>{item.bio}</Text>
                     </View>
                     <TouchableOpacity
@@ -349,34 +395,20 @@ export default function GroupsScreen() {
                 <TouchableOpacity 
                   style={styles.viewButton} 
                   onPress={() => {
-                    if (user && item.members.includes(user.uid)) {
-                      router.push({
-                        pathname: "/groupChat",
-                        params: { groupId: item.id, groupName: item.name }
-                      });
-                    } else {
-                      router.push({
-                        pathname: "/group/[groupId]",
-                        params: { groupId: item.id }
-                      });
-                    }
+                    router.push({
+                      pathname: "/group/[groupId]",
+                      params: { groupId: item.id }
+                    });
                   }}
                 >
                   <Text style={styles.buttonText}>View</Text>
                 </TouchableOpacity>
-                {user && item.members.includes(user.uid) ? (
+                {user && item.members.includes(user.uid) && (
                   <TouchableOpacity 
                     style={styles.inviteButton} 
                     onPress={() => handleInvite(item)}
                   >
                     <Text style={styles.buttonText}>Invite</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity 
-                    style={styles.joinButton} 
-                    onPress={() => handleJoinGroup(item)}
-                  >
-                    <Text style={styles.buttonText}>Join</Text>
                   </TouchableOpacity>
                 )}
                 {user && item.createdBy === user.uid && (

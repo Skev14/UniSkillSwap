@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform, SafeAreaView, Alert } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { router } from 'expo-router';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, storage } from '../../config/firebase';
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -10,6 +10,7 @@ import { ActivityIndicator } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { getUserCredits } from '../../services/creditService';
+import { deleteUser } from 'firebase/auth';
 
 interface UserProfile {
   photoURL?: string;
@@ -96,6 +97,33 @@ export default function HomeScreen() {
       console.error('Error updating profile photo:', error);
       setUploading(false);
     }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete user document from Firestore
+              await deleteDoc(doc(db, 'users', user.uid));
+              // Delete user from Firebase Auth
+              await deleteUser(user);
+              Alert.alert('Account Deleted', 'Your account has been deleted.');
+              router.replace('/(auth)/login');
+            } catch (error: any) {
+              Alert.alert('Error', 'Error deleting account: ' + (error.message || error));
+            }
+          },
+        },
+      ]
+    );
   };
 
   useEffect(() => {
@@ -235,6 +263,16 @@ export default function HomeScreen() {
             <Ionicons name="log-out-outline" size={20} color="#fff" style={styles.buttonIcon} />
             <Text style={styles.buttonText}>Logout</Text>
           </TouchableOpacity>
+
+          {user && (
+            <TouchableOpacity
+              style={{ backgroundColor: '#e57373', borderRadius: 14, padding: 14, marginTop: 24, alignItems: 'center' }}
+              onPress={handleDeleteAccount}
+            >
+              <Ionicons name="trash" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Delete Account</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

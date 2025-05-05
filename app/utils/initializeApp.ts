@@ -6,7 +6,7 @@ const dummyUsers = [
   {
     id: 'dummy1',
     photoURL: 'https://xsgames.co/randomusers/assets/avatars/female/1.jpg',
-    bio: 'English tutor looking to help others improve their language skills.',
+    bio: "Happy to help with English. Always up for a chat about books or films.",
     skillsOffered: ['English', 'JavaScript', 'Python'],
     skillsNeeded: ['Calculus', 'Linear Algebra', 'Statistics'],
     availability: ['Morning', 'Friday', 'Monday'],
@@ -15,7 +15,7 @@ const dummyUsers = [
   {
     id: 'dummy2',
     photoURL: 'https://xsgames.co/randomusers/assets/avatars/male/2.jpg',
-    bio: 'Math major willing to help with any math subject. Looking to learn programming.',
+    bio: "Maths student, keen to lend a hand. Looking to pick up some coding.",
     skillsOffered: ['Calculus', 'Linear Algebra', 'Statistics'],
     skillsNeeded: ['JavaScript', 'Python', 'Web Development'],
     availability: ['Evening', 'Weekend'],
@@ -24,7 +24,7 @@ const dummyUsers = [
   {
     id: 'dummy3',
     photoURL: 'https://xsgames.co/randomusers/assets/avatars/female/3.jpg',
-    bio: 'Physics student interested in exchanging knowledge about quantum mechanics and machine learning.',
+    bio: "Physics undergrad, always curious. Let's swap ideas.",
     skillsOffered: ['Quantum Physics', 'Mathematics', 'Machine Learning'],
     skillsNeeded: ['Programming', 'Data Science', 'Statistics'],
     availability: ['Afternoon', 'Evening'],
@@ -33,7 +33,7 @@ const dummyUsers = [
   {
     id: 'dummy4',
     photoURL: 'https://xsgames.co/randomusers/assets/avatars/male/4.jpg',
-    bio: 'Data Science enthusiast looking to improve public speaking skills.',
+    bio: "Into data and stats. Hoping to get better at public speaking.",
     skillsOffered: ['Python', 'Data Analysis', 'Statistics'],
     skillsNeeded: ['Public Speaking', 'Presentation Skills', 'Communication'],
     availability: ['Morning', 'Afternoon'],
@@ -42,7 +42,7 @@ const dummyUsers = [
   {
     id: 'dummy5',
     photoURL: 'https://xsgames.co/randomusers/assets/avatars/female/5.jpg',
-    bio: 'Literature major offering help with essay writing and creative writing.',
+    bio: "Love a good book. Can help with essays or creative writing.",
     skillsOffered: ['Essay Writing', 'Creative Writing', 'Literature Analysis'],
     skillsNeeded: ['Digital Marketing', 'Social Media', 'Graphic Design'],
     availability: ['Evening', 'Weekend'],
@@ -51,16 +51,16 @@ const dummyUsers = [
   {
     id: 'dummy6',
     photoURL: 'https://xsgames.co/randomusers/assets/avatars/male/6.jpg',
-    bio: 'I am a JavaScript and React Native developer, available in the Morning.',
-    skillsOffered: ['React Native', 'JavaScript'], // 1 skill match with current user's skillsNeeded
+    bio: "JavaScript and React Native fan. Usually around in the mornings.",
+    skillsOffered: ['React Native', 'JavaScript'],
     skillsNeeded: ['HTML'],
-    availability: ['Morning'], // 1 availability overlap with current user's ['Morning']
+    availability: ['Morning'],
     createdAt: null
   },
   {
     id: 'dummy7',
     photoURL: 'https://xsgames.co/randomusers/assets/avatars/female/7.jpg',
-    bio: 'Psychology major who loves to chat in the evenings.',
+    bio: "Studying psychology. Always happy to chat in the evenings.",
     skillsOffered: ['Psychology'],
     skillsNeeded: ['Mathematics'],
     availability: ['Evening', 'Wednesday', 'Friday'],

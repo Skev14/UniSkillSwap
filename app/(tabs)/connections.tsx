@@ -10,6 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 interface UserProfile {
   id: string;
+  name?: string;
+  username?: string;
   photoURL?: string;
   skillsOffered: string[];
   skillsNeeded: string[];
@@ -64,6 +66,8 @@ export default function ConnectionsScreen() {
           const data = userDoc.data();
           interestedProfiles.push({
             id,
+            name: data.name || '',
+            username: data.username || '',
             photoURL: data.photoURL || '',
             skillsOffered: Array.isArray(data.skillsOffered) ? data.skillsOffered : [],
             skillsNeeded: Array.isArray(data.skillsNeeded) ? data.skillsNeeded : [],
@@ -82,6 +86,8 @@ export default function ConnectionsScreen() {
           const data = userDoc.data();
           mutualProfiles.push({
             id,
+            name: data.name || '',
+            username: data.username || '',
             photoURL: data.photoURL || '',
             skillsOffered: Array.isArray(data.skillsOffered) ? data.skillsOffered : [],
             skillsNeeded: Array.isArray(data.skillsNeeded) ? data.skillsNeeded : [],
@@ -165,7 +171,9 @@ export default function ConnectionsScreen() {
                 )}
               </View>
               <View style={styles.compactInfo}>
-                <Text style={styles.compactName} numberOfLines={1}>{item.bio || 'No bio'}</Text>
+                <Text style={styles.compactName} numberOfLines={1}>
+                  {item.name ? item.name : item.username ? `@${item.username}` : (item.bio || 'No bio')}
+                </Text>
                 <View style={styles.compactChipRow}>
                   {item.skillsOffered.slice(0, 2).map((skill, idx) => (
                     <View key={skill + idx} style={[styles.compactChip, { backgroundColor: '#e3eaff' }]}><Text style={styles.compactChipText}>{skill}</Text></View>
@@ -204,7 +212,9 @@ export default function ConnectionsScreen() {
                 )}
               </View>
               <View style={styles.compactInfo}>
-                <Text style={styles.compactName} numberOfLines={1}>{item.bio || 'No bio'}</Text>
+                <Text style={styles.compactName} numberOfLines={1}>
+                  {item.name ? item.name : item.username ? `@${item.username}` : (item.bio || 'No bio')}
+                </Text>
                 <View style={styles.compactChipRow}>
                   {item.skillsOffered.slice(0, 2).map((skill, idx) => (
                     <View key={skill + idx} style={[styles.compactChip, { backgroundColor: '#e3eaff' }]}><Text style={styles.compactChipText}>{skill}</Text></View>

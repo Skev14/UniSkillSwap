@@ -9,7 +9,7 @@ interface Invitation {
   groupId: string;
   groupName: string;
   senderId: string;
-  recipientId: string;
+  inviteeId: string;
   status: 'pending' | 'accepted' | 'declined';
   timestamp: any;
 }
@@ -34,7 +34,7 @@ export default function GroupInvites() {
       const invitationsRef = collection(db, 'invitations');
       const q = query(
         invitationsRef,
-        where('recipientId', '==', user.uid),
+        where('inviteeId', '==', user.uid),
         where('status', '==', 'pending')
       );
       
@@ -67,8 +67,16 @@ export default function GroupInvites() {
       // Add user to group members
       const groupRef = doc(db, 'groups', groupId);
       const groupDoc = await getDoc(groupRef);
-      const currentMembers = groupDoc.data()?.members || [];
       
+      if (!groupDoc.exists()) {
+        // Group does not exist, show alert and remove invite
+        alert('Group Not Found: This group no longer exists. The invitation will be removed.');
+        await deleteDoc(invitationRef);
+        setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+        return;
+      }
+
+      const currentMembers = groupDoc.data()?.members || [];
       await updateDoc(groupRef, {
         members: [...currentMembers, user?.uid]
       });
@@ -114,8 +122,8 @@ export default function GroupInvites() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Pending Invitations</Text>
-      {invitations.map((invitation) => (
-        <View key={invitation.id} style={styles.invitationCard}>
+      {invitations.map((invitation, idx) => (
+        <View key={invitation.id || invitation.groupId + '-' + idx} style={styles.invitationCard}>
           <Text style={styles.groupName}>{invitation.groupName}</Text>
           <View style={styles.buttonContainer}>
             <TouchableOpacity

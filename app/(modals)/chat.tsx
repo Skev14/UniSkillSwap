@@ -51,6 +51,10 @@ export default function ChatScreen() {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   useEffect(() => {
     if (user && userId) {
@@ -202,6 +206,30 @@ export default function ChatScreen() {
     }
   };
 
+  const submitReport = async () => {
+    if (!user || !userId || !reportReason.trim()) return;
+    setReportSubmitting(true);
+    try {
+      await addDoc(collection(db, 'reports'), {
+        reportedId: userId,
+        type: 'user',
+        reporterId: user.uid,
+        reason: reportReason.trim(),
+        timestamp: serverTimestamp(),
+      });
+      setReportSuccess(true);
+      setTimeout(() => {
+        setReportModalVisible(false);
+        setReportReason('');
+        setReportSuccess(false);
+      }, 1200);
+    } catch (error) {
+      alert('Failed to submit report. Please try again.');
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
     const isCurrentUser = item.senderId === user?.uid;
     if (item.type === 'session_request') {
@@ -318,10 +346,16 @@ export default function ChatScreen() {
           </View>
         </LinearGradient>
         <View style={styles.container}>
-          <TouchableOpacity style={styles.sessionRequestButton} onPress={() => setSessionModalVisible(true)}>
-            <Ionicons name="calendar-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
-            <Text style={styles.sessionRequestButtonText}>Request Study Session</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+            <TouchableOpacity style={styles.sessionRequestButton} onPress={() => setSessionModalVisible(true)}>
+              <Ionicons name="calendar-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={styles.sessionRequestButtonText}>Request Study Session</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.sessionRequestButton, { backgroundColor: '#e57373' }]} onPress={() => setReportModalVisible(true)}>
+              <Ionicons name="flag" size={18} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={styles.sessionRequestButtonText}>Report User</Text>
+            </TouchableOpacity>
+          </View>
           <Modal
             visible={sessionModalVisible}
             animationType="slide"
@@ -413,6 +447,40 @@ export default function ChatScreen() {
                 <Text style={styles.modalSendText}>{submittingFeedback ? 'Submitting...' : 'Submit'}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Report Modal */}
+      <Modal
+        visible={reportModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { width: 320, minHeight: 220, alignItems: 'center' }] }>
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setReportModalVisible(false)}>
+              <Ionicons name="close" size={28} color="#4c669f" />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { marginBottom: 8 }]}>Report User</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 12, width: '100%' }]}
+              placeholder="Reason for report..."
+              value={reportReason}
+              onChangeText={setReportReason}
+              editable={!reportSubmitting && !reportSuccess}
+            />
+            {reportSuccess ? (
+              <Text style={{ color: 'green', fontWeight: 'bold', marginBottom: 8 }}>Report submitted!</Text>
+            ) : null}
+            <TouchableOpacity
+              style={[styles.sessionRequestButton, { backgroundColor: '#e57373', opacity: reportSubmitting || !reportReason.trim() ? 0.6 : 1 }]}
+              onPress={submitReport}
+              disabled={reportSubmitting || !reportReason.trim()}
+            >
+              <Ionicons name="flag" size={18} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={styles.sessionRequestButtonText}>{reportSubmitting ? 'Submitting...' : 'Submit Report'}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -766,5 +834,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
   },
 }); 

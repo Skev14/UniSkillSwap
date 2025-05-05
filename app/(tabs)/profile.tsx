@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, FlatList, ActivityIndicator, TextInput, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { db } from '../../services/firebaseConfig';
-import { collection, getDocs, query, where, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../../services/firebaseConfig';
+import { collection, getDocs, query, where, doc, getDoc, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import CreditDisplay from '../../components/CreditDisplay';
+import { deleteUser } from 'firebase/auth';
 
 interface Feedback {
   id: string;
@@ -214,6 +215,21 @@ export default function BrowseProfilesScreen() {
   };
 
   const getDisplayName = (user: any) => user.name || user.displayName || user.username || user.email || 'Anonymous';
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) return;
+    try {
+      // Delete user document from Firestore
+      await deleteDoc(doc(db, 'users', user.uid));
+      // Delete user from Firebase Auth
+      await deleteUser(auth.currentUser!);
+      alert('Your account has been deleted.');
+      router.replace('/(auth)/login');
+    } catch (error: any) {
+      alert('Error deleting account: ' + (error.message || error));
+    }
+  };
 
   return (
     <View style={styles.container}>

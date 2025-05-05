@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet, FlatList, Alert, Image } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet, FlatList, Alert, Image, Modal, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { db } from '../../services/firebaseConfig';
-import { doc, getDoc, updateDoc, arrayUnion, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, collection, getDocs, query, where, arrayRemove, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -29,11 +29,23 @@ export default function GroupDetailsScreen() {
   const [memberProfiles, setMemberProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     if (groupId) fetchGroup();
   }, [groupId]);
+
+  useEffect(() => {
+    const ids = memberProfiles.map(m => m.id);
+    const hasDuplicates = ids.length !== new Set(ids).size;
+    if (hasDuplicates) {
+      console.warn('Duplicate member ids detected in group members:', ids);
+    }
+  }, [memberProfiles]);
 
   const fetchGroup = async () => {
     setLoading(true);
@@ -114,6 +126,60 @@ export default function GroupDetailsScreen() {
     }
   };
 
+  const handleLeaveGroup = async () => {
+    if (!user || !group) return;
+    Alert.alert(
+      'Leave Group',
+      'Are you sure you want to leave this group?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const groupRef = doc(db, 'groups', group.id);
+              await updateDoc(groupRef, {
+                members: arrayRemove(user.uid),
+              });
+              setGroup({ ...group, members: group.members.filter(id => id !== user.uid) });
+              setMemberProfiles(prev => prev.filter(profile => profile.id !== user.uid));
+              await fetchGroup();
+              Alert.alert('Left Group', 'You have left the group.');
+            } catch (error) {
+              Alert.alert('Error', 'Could not leave group.');
+              console.error('Error leaving group:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const submitReport = async () => {
+    if (!user || !group || !reportReason.trim()) return;
+    setReportSubmitting(true);
+    try {
+      await addDoc(collection(db, 'reports'), {
+        reportedId: group.id,
+        type: 'group',
+        reporterId: user.uid,
+        reason: reportReason.trim(),
+        timestamp: serverTimestamp(),
+      });
+      setReportSuccess(true);
+      setTimeout(() => {
+        setReportModalVisible(false);
+        setReportReason('');
+        setReportSuccess(false);
+      }, 1200);
+    } catch (error) {
+      alert('Failed to submit report. Please try again.');
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -163,10 +229,28 @@ export default function GroupDetailsScreen() {
             <Text style={styles.chatButtonText}>Open Chat</Text>
           </TouchableOpacity>
         )}
+        {isMember && user && group.createdBy !== user.uid && (
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
+            <TouchableOpacity
+              style={[styles.chatButton, { backgroundColor: '#e57373', marginTop: 8, flex: 1 }]}
+              onPress={handleLeaveGroup}
+            >
+              <Ionicons name="exit-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.chatButtonText}>Leave Group</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.chatButton, { backgroundColor: '#e57373', marginTop: 8, flex: 1 }]}
+              onPress={() => setReportModalVisible(true)}
+            >
+              <Ionicons name="flag" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.chatButtonText}>Report Group</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <Text style={styles.sectionTitle}>Members ({group.members.length})</Text>
         <FlatList
           data={memberProfiles}
-          keyExtractor={item => item.id}
+          keyExtractor={(item, idx) => `${item.id || 'member'}-${idx}`}
           renderItem={({ item }) => (
             <View style={styles.memberCard}>
               {item.photoURL ? (
@@ -195,18 +279,41 @@ export default function GroupDetailsScreen() {
           )}
           style={styles.memberList}
         />
-        {!isMember && (
-          <TouchableOpacity 
-            style={styles.joinButton} 
-            onPress={handleJoin} 
-            disabled={joining}
-          >
-            <Text style={styles.joinButtonText}>
-              {joining ? 'Joining...' : 'Join Group'}
-            </Text>
-          </TouchableOpacity>
-        )}
       </View>
+      {/* Report Modal */}
+      <Modal
+        visible={reportModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { width: 320, minHeight: 220, alignItems: 'center' }] }>
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setReportModalVisible(false)}>
+              <Ionicons name="close" size={28} color="#4c669f" />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { marginBottom: 8 }]}>Report Group</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 12, width: '100%' }]}
+              placeholder="Reason for report..."
+              value={reportReason}
+              onChangeText={setReportReason}
+              editable={!reportSubmitting && !reportSuccess}
+            />
+            {reportSuccess ? (
+              <Text style={{ color: 'green', fontWeight: 'bold', marginBottom: 8 }}>Report submitted!</Text>
+            ) : null}
+            <TouchableOpacity
+              style={[styles.chatButton, { backgroundColor: '#e57373', opacity: reportSubmitting || !reportReason.trim() ? 0.6 : 1 }]}
+              onPress={submitReport}
+              disabled={reportSubmitting || !reportReason.trim()}
+            >
+              <Ionicons name="flag" size={18} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={styles.chatButtonText}>{reportSubmitting ? 'Submitting...' : 'Submit Report'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -395,5 +502,34 @@ const styles = StyleSheet.create({
     zIndex: 10,
     backgroundColor: 'transparent',
     padding: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'transparent',
+    padding: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    padding: 10,
   },
 }); 
